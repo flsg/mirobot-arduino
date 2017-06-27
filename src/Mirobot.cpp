@@ -1,6 +1,8 @@
 #include "Arduino.h"
 #include "Mirobot.h"
 
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(8, 3, NEO_GRB + NEO_KHZ800);
+
 HotStepper motor1(&PORTB, 0b00011101);
 HotStepper motor2(&PORTD, 0b11110000);
 
@@ -33,12 +35,18 @@ void Mirobot::begin(unsigned char v){
   pinMode(LEFT_COLLIDE_SENSOR, INPUT_PULLUP);
   pinMode(RIGHT_COLLIDE_SENSOR, INPUT_PULLUP);
   _collideStatus = NORMAL;
-  // Initialise the pen arm into the up position
-  //setPenState(UP);
   // Pull the settings out of memory
   initSettings();
   // Set up the status LED
   pinMode(STATUS_LED, OUTPUT);
+
+  // Set RGB LED color
+  pixels.begin();
+
+  for(uint8_t i = 0; i < 8; i++) {
+    pixels.setPixelColor(i, pixels.Color(0, 0, 0));
+    pixels.show();
+  }
 }
 
 void Mirobot::begin(){
@@ -47,17 +55,13 @@ void Mirobot::begin(){
 
 void Mirobot::enableSerial(){
   // Use non-blocking mode to process serial
-  blocking = false;
+  blocking = true;
   // Set up the commands
   initCmds();
   // Set up Serial and add it to be processed
   Serial.begin(57600);
   // Add the output handler for responses
-  if(hwVersion == 1){
-    cmdProcessor.addOutputHandler(sendSerialMsgV1);
-  }else{
-    cmdProcessor.addOutputHandler(sendSerialMsg);
-  }
+  cmdProcessor.addOutputHandler(sendSerialMsg);
   // Enable serial processing
   serialEnabled = true;
 }
@@ -117,9 +121,8 @@ void Mirobot::initCmds(){
   cmdProcessor.addCmd("back",             &Mirobot::_back,             false);
   cmdProcessor.addCmd("right",            &Mirobot::_right,            false);
   cmdProcessor.addCmd("left",             &Mirobot::_left,             false);
-  //cmdProcessor.addCmd("penup",            &Mirobot::_penup,            false);
-  //cmdProcessor.addCmd("pendown",          &Mirobot::_pendown,          false);
   cmdProcessor.addCmd("servo",            &Mirobot::_servo,            false);
+  cmdProcessor.addCmd("rgb",              &Mirobot::_rgb,              false);
   cmdProcessor.addCmd("follow",           &Mirobot::_follow,           false);
   cmdProcessor.addCmd("collide",          &Mirobot::_collide,          false);
   cmdProcessor.addCmd("beep",             &Mirobot::_beep,             false);
@@ -213,18 +216,13 @@ void Mirobot::_left(ArduinoJson::JsonObject &inJson, ArduinoJson::JsonObject &ou
   left(atoi(inJson["arg"].asString()));
 }
 
-/*
-void Mirobot::_penup(ArduinoJson::JsonObject &inJson, ArduinoJson::JsonObject &outJson){
-  penup();
-}
-
-void Mirobot::_pendown(ArduinoJson::JsonObject &inJson, ArduinoJson::JsonObject &outJson){
-  pendown();
-}
-*/
-
 void Mirobot::_servo(ArduinoJson::JsonObject &inJson, ArduinoJson::JsonObject &outJson){
   servo(atoi(inJson["arg"].asString()));
+}
+
+void Mirobot::_rgb(ArduinoJson::JsonObject &inJson, ArduinoJson::JsonObject &outJson){
+  rgb(atoi(inJson["arg1"].asString()),atoi(inJson["arg2"].asString()),\
+  atoi(inJson["arg3"].asString()),atoi(inJson["arg4"].asString()));
 }
 
 void Mirobot::_follow(ArduinoJson::JsonObject &inJson, ArduinoJson::JsonObject &outJson){
@@ -281,22 +279,23 @@ void Mirobot::right(int angle){
   wait(0);
 }
 
-/*
-void Mirobot::penup(){
-  setPenState(UP);
-  wait();
-}
-
-void Mirobot::pendown(){
-  setPenState(DOWN);
-  wait();
-}
-*/
-
 void Mirobot::servo(int angle) {
   servo_pulses_left = SERVO_PULSES;
   next_servo_pulse = 0;
   wait(angle);
+}
+
+void Mirobot::rgb(uint8_t led, uint8_t red, uint8_t green, uint8_t blue) {
+  pixels.setPixelColor(led, pixels.Color(red, green, blue));
+  pixels.show();
+}
+
+uint8_t Mirobot::lineSensor(uint8_t sensor) {
+  if(sensor == 0) {
+    return digitalRead(LEFT_LINE_SENSOR);
+  } else {
+    return digitalRead(RIGHT_LINE_SENSOR);
+  }
 }
 
 void Mirobot::pause(){

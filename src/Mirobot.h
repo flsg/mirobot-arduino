@@ -7,21 +7,18 @@
 #include "lib/CmdProcessor.h"
 #include "lib/ArduinoJson/ArduinoJson.h"
 #include <EEPROM.h>
+#include <Adafruit_NeoPixel.h>
+#ifdef __AVR__
+  #include <avr/power.h>
+#endif
 
 #define SERIAL_BUFFER_LENGTH 180
 
 // The steppers have a gear ratio of 1:63.7 and have 32 steps per turn. 32 x 63.7 = 2038.4
 #define STEPS_PER_TURN    2048.0f
 
-#define CIRCUMFERENCE_MM_V1  251.3f
-#define WHEEL_DISTANCE_V1    126.0f
-//#define PENUP_DELAY_V1 1200
-//#define PENDOWN_DELAY_V1 2000
-
 #define CIRCUMFERENCE_MM_V2  256.0f
 #define WHEEL_DISTANCE_V2    120.0f
-//#define PENUP_DELAY_V2 2000
-//#define PENDOWN_DELAY_V2 1000
 
 #define STEPS_PER_MM_V1      STEPS_PER_TURN / CIRCUMFERENCE_MM_V1
 #define STEPS_PER_DEGREE_V1  ((WHEEL_DISTANCE_V1 * 3.1416) / 360) * STEPS_PER_MM_V1
@@ -30,7 +27,7 @@
 
 #define STATUS_LED 13
 
-#define MIROBOT_SUB_VERSION "0.9"
+#define MIROBOT_SUB_VERSION "0.9MOD"
 
 #define EEPROM_OFFSET 0
 #define MAGIC_BYTE_1 0xF0
@@ -48,8 +45,6 @@
 
 #define LEFT_COLLIDE_SENSOR  A3
 #define RIGHT_COLLIDE_SENSOR A2
-
-//typedef enum {UP, DOWN} penState_t;
 
 typedef enum {NONE=0, RIGHT, LEFT, BOTH} collideState_t;
 typedef enum {NORMAL, RIGHT_REVERSE, RIGHT_TURN, LEFT_REVERSE, LEFT_TURN} collideStatus_t;
@@ -71,9 +66,9 @@ class Mirobot {
     void back(int distance);
     void right(int angle);
     void left(int angle);
-    //void penup();
-    //void pendown();
     void servo(int angle);
+    void rgb(uint8_t led, uint8_t red, uint8_t green, uint8_t blue);
+    uint8_t lineSensor(uint8_t sensor);
     void pause();
     void resume();
     void stop();
@@ -126,9 +121,8 @@ class Mirobot {
     void _back(ArduinoJson::JsonObject &, ArduinoJson::JsonObject &);
     void _right(ArduinoJson::JsonObject &, ArduinoJson::JsonObject &);
     void _left(ArduinoJson::JsonObject &, ArduinoJson::JsonObject &);
-    //void _penup(ArduinoJson::JsonObject &, ArduinoJson::JsonObject &);
-    //void _pendown(ArduinoJson::JsonObject &, ArduinoJson::JsonObject &);
     void _servo(ArduinoJson::JsonObject &, ArduinoJson::JsonObject &);
+    void _rgb(ArduinoJson::JsonObject &, ArduinoJson::JsonObject &);
     void _follow(ArduinoJson::JsonObject &, ArduinoJson::JsonObject &);
     void _collide(ArduinoJson::JsonObject &, ArduinoJson::JsonObject &);
     void _beep(ArduinoJson::JsonObject &, ArduinoJson::JsonObject &);
@@ -138,8 +132,6 @@ class Mirobot {
     collideStatus_t _collideStatus;
     unsigned long lastLedChange;
     Mirobot& self() { return *this; }
-    //penState_t penState;
-    //void setPenState(penState_t);
     void takeUpSlack(byte, byte);
     void calibrateHandler();
     boolean paused;
@@ -149,8 +141,6 @@ class Mirobot {
     float steps_per_degree;
     unsigned char servo_pulses_left;
     unsigned long next_servo_pulse;
-    int penup_delay;
-    int pendown_delay;
     long beepComplete;
     boolean calibratingSlack;
     bool serialEnabled = false;

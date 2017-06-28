@@ -255,34 +255,34 @@ void Mirobot::forward(int distance){
   takeUpSlack(FORWARD, BACKWARD);
   motor1.turn(distance * steps_per_mm * settings.moveCalibration, FORWARD);
   motor2.turn(distance * steps_per_mm * settings.moveCalibration, BACKWARD);
-  wait(0);
+  wait();
 }
 
 void Mirobot::back(int distance){
   takeUpSlack(BACKWARD, FORWARD);
   motor1.turn(distance * steps_per_mm * settings.moveCalibration, BACKWARD);
   motor2.turn(distance * steps_per_mm * settings.moveCalibration, FORWARD);
-  wait(0);
+  wait();
 }
 
 void Mirobot::left(int angle){
   takeUpSlack(FORWARD, FORWARD);
   motor1.turn(angle * steps_per_degree * settings.moveCalibration * settings.turnCalibration, FORWARD);
   motor2.turn(angle * steps_per_degree * settings.moveCalibration * settings.turnCalibration, FORWARD);
-  wait(0);
+  wait();
 }
 
 void Mirobot::right(int angle){
   takeUpSlack(BACKWARD, BACKWARD);
   motor1.turn(angle * steps_per_degree * settings.moveCalibration * settings.turnCalibration, BACKWARD);
   motor2.turn(angle * steps_per_degree * settings.moveCalibration * settings.turnCalibration, BACKWARD);
-  wait(0);
+  wait();
 }
 
 void Mirobot::servo(int angle) {
   servo_pulses_left = SERVO_PULSES;
   next_servo_pulse = 0;
-  wait(angle);
+  waitAngle(angle);
 }
 
 void Mirobot::rgb(uint8_t led, uint8_t red, uint8_t green, uint8_t blue) {
@@ -353,7 +353,13 @@ boolean Mirobot::ready(){
   return (motor1.ready() && motor2.ready() && !servo_pulses_left && beepComplete < millis());
 }
 
-void Mirobot::wait(int angle){
+void Mirobot::wait(){
+  if(blocking){
+    while(!ready()){}
+  }
+}
+
+void Mirobot::waitAngle(int angle){
   if(blocking){
     while(!ready()){
       if(servo_pulses_left){
@@ -362,14 +368,6 @@ void Mirobot::wait(int angle){
     }
   }
 }
-
-/*
-void Mirobot::setPenState(penState_t state){
-  penState = state;
-  servo_pulses_left = SERVO_PULSES;
-  next_servo_pulse = 0;
-}
-*/
 
 void Mirobot::followHandler(){
   if(motor1.ready() && motor2.ready()){
@@ -490,17 +488,8 @@ void Mirobot::sensorNotifier(){
 void Mirobot::version(char v){
   hwVersion = v;
   sprintf(versionStr, "%d.%s", hwVersion, MIROBOT_SUB_VERSION);
-  if(v == 1){
-    steps_per_mm = STEPS_PER_MM_V1;
-    steps_per_degree = STEPS_PER_DEGREE_V1;
-    //penup_delay = PENUP_DELAY_V1;
-    //pendown_delay = PENDOWN_DELAY_V1;
-  }else if(v == 2){
-    steps_per_mm = STEPS_PER_MM_V2;
-    steps_per_degree = STEPS_PER_DEGREE_V2;
-    //penup_delay = PENUP_DELAY_V2;
-    //pendown_delay = PENDOWN_DELAY_V2;
-  }
+  steps_per_mm = STEPS_PER_MM_V2;
+  steps_per_degree = STEPS_PER_DEGREE_V2;
 }
 
 void Mirobot::calibrateSlack(unsigned int amount){
@@ -578,7 +567,7 @@ void Mirobot::checkReady(){
 
 void Mirobot::loop(){
   ledHandler();
-  servoHandler(0);
+  //servoHandler(0);
   autoHandler();
   calibrateHandler();
   sensorNotifier();

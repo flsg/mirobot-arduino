@@ -89,7 +89,8 @@ class Mirobot {
     boolean collideNotify;
     boolean followNotify;
   private:
-    void wait(int angle);
+  void wait();
+    void waitAngle(int angle);
     void followHandler();
     void collideHandler();
     void ledHandler();
